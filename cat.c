@@ -5,15 +5,15 @@
 
 #define OPTIONS_END -1
 
-static const char short_options[] = "AbeEnstTuv";
+static const char SHORT_OPTIONS[] = "AbeEnstTuv";
 
-static const struct option long_options[] = {{"show-all", 0, NULL, 'A'},
+static const struct option LONG_OPTIONS[] = {{"show-all", 0, NULL, 'A'},
                                              {"number-nonblank", 0, NULL, 'b'},
                                              {"show-ends", 0, NULL, 'E'},
                                              {"number", 0, NULL, 'n'},
                                              {"squeeze-blank", 0, NULL, 's'},
                                              {"show-tabs", 0, NULL, 'T'},
-                                             {"show-nonprinting", 0, NULL, 'A'},
+                                             {"show-nonprinting", 0, NULL, 'v'},
                                              {"help", 0, NULL, 0},
                                              {NULL, 0, NULL, 0}};
 
@@ -26,10 +26,9 @@ struct Options {
   bool u;
   bool v;
 };
-
 typedef struct Options Options;
 
-static void set_option(char option, Options *options);
+static void set_option(const char option, Options *options);
 static void print_help();
 static void print_invalid_option();
 
@@ -39,11 +38,11 @@ int main(int argc, char *argv[]) {
   int long_options_index = 0;
 
   char current_option =
-      getopt_long(argc, argv, short_options, long_options, &long_options_index);
+      getopt_long(argc, argv, SHORT_OPTIONS, LONG_OPTIONS, &long_options_index);
 
   while (current_option != OPTIONS_END) {
     set_option(current_option, &options);
-    current_option = getopt_long(argc, argv, short_options, long_options,
+    current_option = getopt_long(argc, argv, SHORT_OPTIONS, LONG_OPTIONS,
                                  &long_options_index);
   }
 
@@ -57,17 +56,20 @@ int main(int argc, char *argv[]) {
   return EXIT_SUCCESS;
 }
 
-static void set_option(char option, Options *options) {
+static void set_option(const char option, Options *options) {
   switch (option) {
     case 'A':
-      options->v = options->e = options->t = true;
+      options->v = true;
+      options->e = true;
+      options->t = true;
       break;
     case 'b':
       options->b = true;
       options->n = false;
       break;
     case 'e':
-      options->v = options->e = true;
+      options->v = true;
+      options->e = true;
       break;
     case 'E':
       options->e = true;
@@ -79,7 +81,8 @@ static void set_option(char option, Options *options) {
       options->s = true;
       break;
     case 't':
-      options->v = options->t = true;
+      options->v = true;
+      options->t = true;
       break;
     case 'T':
       options->t = true;
