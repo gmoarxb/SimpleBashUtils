@@ -38,7 +38,11 @@ static void process_files(int file_count, char* const file_path[],
                           const Options* const options);
 static void print_invalid_file(const char* const file_name);
 static void print_file(FILE* file, const Options* const options);
-static void squeeze_blank(FILE* file);
+static void squeeze_blank(FILE* file, char previous_symbol, char current_symbol,
+                          const Options* const options);
+static void number_line(char previous_symbol, char current_symbol,
+                        const Options* const options);
+static void end_line(char current_symbol, const Options* const options);
 static void print_symbol(char current_symbol, char previous_symbol,
                          const Options* const options);
 
@@ -141,24 +145,43 @@ static void print_file(FILE* file, const Options* const options) {
   char previous_symbol = '\n';
   char current_symbol = fgetc(file);
   while (current_symbol != EOF) {
-    print_symbol(current_symbol, previous_symbol, options);
-    if (options->s && previous_symbol == '\n' && current_symbol == '\n') {
-      squeeze_blank(file);
-    }
+    number_line(previous_symbol, current_symbol, options);
+    end_line(current_symbol, options);
+    print_symbol(previous_symbol, current_symbol, options);
+    squeeze_blank(file, previous_symbol, current_symbol, options);
     previous_symbol = current_symbol;
     current_symbol = fgetc(file);
   }
 }
 
-static void squeeze_blank(FILE* file) {
-  char current_symbol = fgetc(file);
-  while (current_symbol == '\n') {
+static void squeeze_blank(FILE* file, char previous_symbol, char current_symbol,
+                          const Options* const options) {
+  if (options->s && previous_symbol == '\n' && current_symbol == '\n') {
     current_symbol = fgetc(file);
+    while (current_symbol == '\n') {
+      current_symbol = fgetc(file);
+    }
+    ungetc(current_symbol, file);
   }
-  ungetc(current_symbol, file);
 }
 
-static void print_symbol(char current_symbol, char previous_symbol,
+static void number_line(char previous_symbol, char current_symbol,
+                        const Options* const options) {
+  static unsigned line_count = 0;
+  if (options->b && previous_symbol == '\n' && current_symbol != '\n') {
+    fprintf(stdout, "%6u\t", ++line_count);
+  } else if (options->n && previous_symbol == '\n') {
+    fprintf(stdout, "%6u\t", ++line_count);
+  }
+}
+
+static void end_line(char current_symbol, const Options* const options) {
+  if (options->e && current_symbol == '\n') {
+    fputc('$', stdout);
+  }
+}
+
+static void print_symbol(char previous_symbol, char current_symbol,
                          const Options* const options) {
   if ((previous_symbol || !previous_symbol) && options)
     fputc(current_symbol, stdout);
