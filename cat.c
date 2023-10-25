@@ -105,7 +105,7 @@ static void set_option(const char option, Options* options) {
 }
 
 static void print_help() {
-  fprintf(stderr,
+  fprintf(stdout,
           "Usage: cat [OPTION]... [FILE]...\nConcatenate FILE(s) to standard "
           "output.\n");
 
@@ -113,7 +113,7 @@ static void print_help() {
 }
 
 static void print_invalid_option() {
-  fprintf(stderr, "Try 'cat --help' for more information.\n");
+  fprintf(stdout, "Try 'cat --help' for more information.\n");
 
   exit(EXIT_FAILURE);
 }
@@ -134,13 +134,16 @@ static void process_files(int file_count, char* const file_path[],
 }
 
 static void print_invalid_file(const char* const file_name) {
-  fprintf(stderr, "%s: No such file or directory\n", file_name);
+  fprintf(stdout, "%s: No such file or directory\n", file_name);
 }
 
 static void print_file(FILE* file, const Options* const options) {
   if (options) {
     puts("We Are Here!");
   }
-  putc(fgetc(file), stdout);
-  puts("");
+  char symbol = fgetc(file);
+  while (symbol != EOF) {
+    putc(symbol, stdout);
+    symbol = fgetc(file);
+  }
 }
