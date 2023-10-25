@@ -29,8 +29,8 @@ struct Options {
 };
 typedef struct Options Options;
 
-static void init_options(int argc, char* const argv[], Options* options);
-static void set_option(const char option, Options* options);
+static void init_options(int argc, char* const argv[], Options* const options);
+static void set_option(const char option, Options* const options);
 static void print_help();
 static void print_invalid_option();
 
@@ -38,6 +38,9 @@ static void process_files(int file_count, char* const file_path[],
                           const Options* const options);
 static void print_invalid_file(const char* const file_name);
 static void print_file(FILE* file, const Options* const options);
+static void squeeze_blank(FILE* file);
+static void print_symbol(char current_symbol, char previous_symbol,
+                         const Options* const options);
 
 int main(int argc, char* argv[]) {
   Options options = {0};
@@ -46,7 +49,7 @@ int main(int argc, char* argv[]) {
   return EXIT_SUCCESS;
 }
 
-static void init_options(int argc, char* const argv[], Options* options) {
+static void init_options(int argc, char* const argv[], Options* const options) {
   int long_options_index = 0;
 
   char current_option =
@@ -59,7 +62,7 @@ static void init_options(int argc, char* const argv[], Options* options) {
   }
 }
 
-static void set_option(const char option, Options* options) {
+static void set_option(const char option, Options* const options) {
   switch (option) {
     case 'A':
       options->v = true;
@@ -88,9 +91,6 @@ static void set_option(const char option, Options* options) {
       break;
     case 'T':
       options->t = true;
-      break;
-    case 'u':
-      options->u = true;
       break;
     case 'v':
       options->v = true;
@@ -138,12 +138,28 @@ static void print_invalid_file(const char* const file_name) {
 }
 
 static void print_file(FILE* file, const Options* const options) {
-  if (options) {
-    puts("We Are Here!");
+  char previous_symbol = '\n';
+  char current_symbol = fgetc(file);
+  while (current_symbol != EOF) {
+    print_symbol(current_symbol, previous_symbol, options);
+    if (options->s && previous_symbol == '\n' && current_symbol == '\n') {
+      squeeze_blank(file);
+    }
+    previous_symbol = current_symbol;
+    current_symbol = fgetc(file);
   }
-  char symbol = fgetc(file);
-  while (symbol != EOF) {
-    putc(symbol, stdout);
-    symbol = fgetc(file);
+}
+
+static void squeeze_blank(FILE* file) {
+  char current_symbol = fgetc(file);
+  while (current_symbol == '\n') {
+    current_symbol = fgetc(file);
   }
+  ungetc(current_symbol, file);
+}
+
+static void print_symbol(char current_symbol, char previous_symbol,
+                         const Options* const options) {
+  if ((previous_symbol || !previous_symbol) && options)
+    fputc(current_symbol, stdout);
 }
