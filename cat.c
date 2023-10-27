@@ -71,6 +71,9 @@ static void init_options(int argc, char* const argv[], Options* const options) {
     current_option = getopt_long(argc, argv, SHORT_OPTIONS, LONG_OPTIONS,
                                  &long_options_index);
   }
+  if (options->b) {
+    options->n = false;
+  }
 }
 
 static void set_option(const char option, Options* const options) {
@@ -116,14 +119,14 @@ static void set_option(const char option, Options* const options) {
 }
 
 static void print_help() {
-  fprintf(stdout,
+  fprintf(stderr,
           "Usage: cat [OPTION]... [FILE]...\n"
           "Concatenate FILE(s) to standard output.\n");
   exit(EXIT_FAILURE);
 }
 
 static void print_invalid_option() {
-  fprintf(stdout, "Try 'cat --help' for more information.\n");
+  fprintf(stderr, "Try 'cat --help' for more information.\n");
   exit(EXIT_FAILURE);
 }
 
@@ -134,17 +137,18 @@ static void process_files(int file_count, char* const file_path[],
     current_file = fopen(*file_path, FOPEN_READ_MODE);
     current_file == NULL ? print_invalid_file(*file_path)
                          : print_file(current_file, options);
+    fflush(stdout);
     ++file_path;
     --file_count;
   }
 }
 
 static void print_invalid_file(const char* const file_name) {
-  fprintf(stdout, "%s: No such file or directory\n", file_name);
+  fprintf(stderr, "cat: %s: No such file or directory\n", file_name);
 }
 
 static void print_file(FILE* file, const Options* const options) {
-  char previous_symbol = '\n';
+  static char previous_symbol = '\n';
   char current_symbol = fgetc(file);
   while (!feof(file)) {
     number_line(previous_symbol, current_symbol, options);

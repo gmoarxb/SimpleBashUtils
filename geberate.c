@@ -2,28 +2,54 @@
 #include <stdlib.h>
 #include <time.h>
 
-int main() {
+void geberate_gibberish(FILE* test_file) {
+  int count = 1000;
+  while (count--) {
+    int bytes = (count % 2) ? rand() : -rand();
+    fwrite(&bytes, sizeof(int), 1, test_file);
+  }
+}
+
+const char spaces[] = {0x0c, 0x0a, 0x0d, 0x09, 0x0b};
+
+void geberate_gibberish_with_spaces(FILE* test_file) {
+  int count = 100;
+  while (count--) {
+    int bytes = (count % 2) ? rand() : -rand();
+    fwrite(&bytes, sizeof(int), 1, test_file);
+    int s_count = 10;
+    while (s_count--) {
+      fwrite(spaces + (rand() % sizeof(spaces)), sizeof(char), 1, test_file);
+    }
+  }
+}
+
+void geberate_spaces(FILE* test_file) {
+  int s_count = 10;
+  while (s_count--) {
+    fwrite(spaces + (rand() % sizeof(spaces)), sizeof(char), 1, test_file);
+  }
+}
+
+void new_file(const char* fname) {
   srand(time(NULL));
-
-  FILE* ascii_symbols = fopen("./ascii.txt", "w");
-
-  putc('\n', ascii_symbols);
-  putc('\n', ascii_symbols);
-  fputs("___", ascii_symbols);
-
-  for (char c = 0; ; ++c) {
-    putc(c, ascii_symbols);
-    putc('\n', ascii_symbols);
-    if (c == 127) break;
+  FILE* test_file = fopen(fname, "w+");
+  int spaces_begin = rand() % 2;
+  int spaces_end = rand() % 2;
+  if (spaces_begin) {
+    geberate_spaces(test_file);
   }
-
-  putc('\n', ascii_symbols);
-  putc('\n', ascii_symbols);
-  fputs("___", ascii_symbols);
-
-  for (int i = 0; i < 1280; ++i) {
-    putc((char)(rand() % 128), ascii_symbols);
+  geberate_gibberish_with_spaces(test_file);
+  geberate_gibberish(test_file);
+  if (spaces_end) {
+    geberate_spaces(test_file);
   }
+  fclose(test_file);
+}
 
+int main(int argc, char* argv[]) {
+  while (--argc) {
+    new_file(argv[argc]);
+  }
   return 0;
 }
