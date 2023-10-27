@@ -48,6 +48,12 @@ static void number_line(const char previous_symbol, const char current_symbol,
 static void end_line(const char current_symbol, const Options* const options);
 static void print_symbol(const char current_symbol,
                          const Options* const options);
+static void print_tab(const char current_symbol, const Options* const options);
+static void print_lfd(const char current_symbol);
+static void print_cntrl(const char current_symbol,
+                        const Options* const options);
+static void print_meta(const char current_symbol, const Options* const options);
+static void print_plain(const char current_symbol);
 
 int main(int argc, char* argv[]) {
   Options options = {0};
@@ -140,7 +146,7 @@ static void print_invalid_file(const char* const file_name) {
 static void print_file(FILE* file, const Options* const options) {
   char previous_symbol = '\n';
   char current_symbol = fgetc(file);
-  while (current_symbol != EOF) {
+  while (!feof(file)) {
     number_line(previous_symbol, current_symbol, options);
     end_line(current_symbol, options);
     print_symbol(current_symbol, options);
@@ -179,18 +185,62 @@ static void end_line(const char current_symbol, const Options* const options) {
 
 static void print_symbol(const char current_symbol,
                          const Options* const options) {
-  int shift = 0;
-  if (options->t && current_symbol == '\t') {
-    shift = NONPRINTING_SHIFT;
-    fputc('^', stdout);
+  if (isprint(current_symbol)) {
+    print_plain(current_symbol);
+  } else if (current_symbol == '\t') {
+    print_tab(current_symbol, options);
+  } else if (current_symbol == '\n') {
+    print_lfd(current_symbol);
+  } else if (iscntrl(current_symbol)) {
+    print_cntrl(current_symbol, options);
+  } else {
+    print_meta(current_symbol, options);
   }
-  if (options->v && iscntrl(current_symbol) && current_symbol != '\t' &&
-      current_symbol != '\n') {
-    shift = NONPRINTING_SHIFT;
+}
+
+static void print_tab(const char current_symbol, const Options* const options) {
+  if (options->t) {
+    print_plain('^');
+    print_plain(current_symbol + NONPRINTING_SHIFT);
+  } else {
+    print_plain(current_symbol);
+  }
+}
+
+static void print_lfd(const char current_symbol) {
+  print_plain(current_symbol);
+}
+
+static void print_cntrl(const char current_symbol,
+                        const Options* const options) {
+  if (options->v) {
+    print_plain('^');
     if (current_symbol == ASCII_DEL) {
-      shift = -NONPRINTING_SHIFT;
+      print_plain(current_symbol - NONPRINTING_SHIFT);
+    } else {
+      print_plain(current_symbol + NONPRINTING_SHIFT);
     }
-    fputc('^', stdout);
+  } else {
+    print_plain(current_symbol);
   }
-  fputc(current_symbol + shift, stdout);
+}
+
+static void print_meta(const char current_symbol,
+                       const Options* const options) {
+  if (options->v) {
+    const char meta_symbol = (signed char)current_symbol + ASCII_DEL + 1;
+    print_plain('M');
+    print_plain('-');
+    if (isprint(meta_symbol)) {
+      print_plain(meta_symbol);
+    } else {
+      print_cntrl(meta_symbol, options);
+    }
+  } else {
+    print_plain(current_symbol);
+  }
+}
+
+static void print_plain(const char current_symbol) {
+  fputc(current_symbol, stdout);
 }
