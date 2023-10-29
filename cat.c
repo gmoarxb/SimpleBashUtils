@@ -41,8 +41,7 @@ static void process_files(int file_count, char* const file_path[],
 static void print_invalid_file(const char* const file_name);
 static void print_file(FILE* file, const Options* const options);
 
-static void squeeze_blank(FILE* file, const char previous_symbol,
-                          char current_symbol, const Options* const options);
+static void count_lfd(const char current_symbol, unsigned* const lfd_count);
 static void number_line(const char previous_symbol, const char current_symbol,
                         const Options* const options);
 static void end_line(const char current_symbol, const Options* const options);
@@ -148,26 +147,28 @@ static void print_invalid_file(const char* const file_name) {
 }
 
 static void print_file(FILE* file, const Options* const options) {
+  static unsigned lfd_count = 1;
   static char previous_symbol = '\n';
   char current_symbol = fgetc(file);
   while (!feof(file)) {
-    number_line(previous_symbol, current_symbol, options);
-    end_line(current_symbol, options);
-    print_symbol(current_symbol, options);
-    squeeze_blank(file, previous_symbol, current_symbol, options);
+    if (options->s) {
+      count_lfd(current_symbol, &lfd_count);
+    }
+    if (current_symbol != '\n' || lfd_count <= 2) {
+      number_line(previous_symbol, current_symbol, options);
+      end_line(current_symbol, options);
+      print_symbol(current_symbol, options);
+    }
     previous_symbol = current_symbol;
     current_symbol = fgetc(file);
   }
 }
 
-static void squeeze_blank(FILE* file, const char previous_symbol,
-                          char current_symbol, const Options* const options) {
-  if (options->s && previous_symbol == '\n' && current_symbol == '\n') {
-    current_symbol = fgetc(file);
-    while (current_symbol == '\n') {
-      current_symbol = fgetc(file);
-    }
-    ungetc(current_symbol, file);
+static void count_lfd(const char current_symbol, unsigned* const lfd_count) {
+  if (current_symbol == '\n') {
+    *lfd_count += 1;
+  } else {
+    *lfd_count = 0;
   }
 }
 
