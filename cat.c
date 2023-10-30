@@ -118,7 +118,7 @@ static void set_option(const char option, Options* const options) {
 }
 
 static void print_help() {
-  fprintf(stderr,
+  fprintf(stdout,
           "Usage: cat [OPTION]... [FILE]...\n"
           "Concatenate FILE(s) to standard output.\n");
   exit(EXIT_FAILURE);

@@ -1,13 +1,13 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 void geberate_gibberish(FILE* test_file) {
-  int count = 256;
+  int count = 64;
   while (count--) {
-    int bytes = (count % 2) ? rand() : -rand();
-    fwrite(&bytes, sizeof(int), 1, test_file);
+    char byte = rand() % 256;
+    fwrite(&byte, sizeof(char), 1, test_file);
   }
 }
 
@@ -28,19 +28,15 @@ void geberate_lfd(FILE* test_file) {
 }
 
 void new_file(const char* fname) {
-  FILE* test_file = fopen(fname, "wb");
-  int spaces_begin = rand() % 2;
-  int spaces_end = rand() % 2;
-  if (spaces_begin) {
+  FILE* test_file = fopen(fname, "w");
+  if (!strcmp(fname, "empty")) {
+  } else if (!strcmp(fname, "lfd")) {
     geberate_lfd(test_file);
-  }
-  geberate_spaces(test_file);
-  geberate_gibberish(test_file);
-  geberate_spaces(test_file);
-  geberate_gibberish(test_file);
-  geberate_spaces(test_file);
-  if (spaces_end) {
-    geberate_lfd(test_file);
+  } else {
+    if (rand() % 2) geberate_lfd(test_file);
+    if (rand() % 2) geberate_spaces(test_file);
+      geberate_gibberish(test_file);
+    if (rand() % 2) geberate_lfd(test_file);
   }
   fclose(test_file);
 }
