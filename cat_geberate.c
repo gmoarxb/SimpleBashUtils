@@ -4,7 +4,7 @@
 #include <time.h>
 
 void geberate_gibberish(FILE* test_file) {
-  int count = 64;
+  int count = 256;
   while (count--) {
     char byte = rand() % 256;
     fwrite(&byte, sizeof(char), 1, test_file);

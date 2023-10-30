@@ -12,7 +12,8 @@ cp ./s21_cat test_directory/
 cd test_directory/
 
 test_number=0
-start_number=$2
+start_number=$(( 64 / $1 / $1))
+#start_number=$(( 64 / $1 ))
 
 files_list="random_1 empty random_2 lfd random_3 random_4"
 
@@ -36,6 +37,7 @@ compare() {
         exit
     fi
     test_number=$((test_number + 1))
+    
 }
 
 options=(-A -b -e -E -n -s -t -T -v)
@@ -43,6 +45,7 @@ gcc ../cat_geberate.c -o geb.out
 
 while [ $start_number != 0 ]; do
 
+start_number=$((start_number - 1))
 ./geb.out $files_list
 
 if [[ $1 -eq 1 ]]; then
@@ -85,9 +88,7 @@ do
 done
 fi
 
-start_number=$((start_number - 1))
-#rm $files_list cat_result s21_result geb.out
 done
 
 cd ..
-#rm -rf ./test_directory
+rm -rf ./test_directory
