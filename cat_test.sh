@@ -13,7 +13,6 @@ cd test_directory/
 
 test_number=0
 start_number=$(( 64 / $1 / $1))
-#start_number=$(( 64 / $1 ))
 
 files_list="random_1 empty random_2 lfd random_3 random_4"
 
