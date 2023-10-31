@@ -1,0 +1,5 @@
+apple banana
+banana apple
+pineapple
+cucumber
+tomato
