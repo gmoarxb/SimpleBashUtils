@@ -11,15 +11,16 @@
 
 static const char SHORT_OPTIONS[] = "AbeEnstTuv";
 
-static const struct option LONG_OPTIONS[] = {{"show-all", 0, NULL, 'A'},
-                                             {"number-nonblank", 0, NULL, 'b'},
-                                             {"show-ends", 0, NULL, 'E'},
-                                             {"number", 0, NULL, 'n'},
-                                             {"squeeze-blank", 0, NULL, 's'},
-                                             {"show-tabs", 0, NULL, 'T'},
-                                             {"show-nonprinting", 0, NULL, 'v'},
-                                             {"help", 0, NULL, 0},
-                                             {NULL, 0, NULL, 0}};
+static const struct option LONG_OPTIONS[] = {
+    {"show-all", 0, NULL, 'A'},
+    {"number-nonblank", 0, NULL, 'b'},
+    {"show-ends", 0, NULL, 'E'},
+    {"number", 0, NULL, 'n'},
+    {"squeeze-blank", 0, NULL, 's'},
+    {"show-tabs", 0, NULL, 'T'},
+    {"show-nonprinting", 0, NULL, 'v'},
+    {"help", 0, NULL, 0},
+    {NULL, 0, NULL, 0}};
 
 typedef struct Options {
   bool b;

@@ -1,15 +1,17 @@
-// #include <ctype.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "string_array.h"
 
 #define GETOPT_OPTIONS_END -1
 #define FOPEN_READ_MODE "r"
-#define GET_LINE_START_SIZE 128
-#define GET_LINE_REALLOC_COEFFICIENT 2
+
+#define PATTERNS_INIT_CAPACITY 128
+#define PATTERNS_CAPACITY_ADDEND 128
+
+#define FILE_BUFFER_INIT_CAPACITY 128
+#define FILE_BUFFER_CAPACITY_MULTIPLIER 2
 
 static const char SHORT_OPTIONS[] = "e:f:isvnholc";
 
@@ -38,8 +40,11 @@ typedef struct Options {
   bool o;
   bool l;
   bool c;
-  StringArray patterns;
-  StringArray patterns_files;
+  struct {
+    char** data;
+    unsigned size;
+    unsigned capacity;
+  } patterns;
 } Options;
 
 static void init_options(int argc, char* const argv[], Options* const options);
@@ -48,25 +53,28 @@ static void set_option(const char option, Options* const options);
 static void print_help();
 static void print_invalid_option();
 static void free_options(Options* const options);
-static void add_patterns(char* const patterns, Options* const options);
+static void add_patterns(const char* const patterns, Options* const options);
 static void add_patterns_from_file(char* const file_path,
                                    Options* const options);
 static void print_invalid_file(const char* const file_name);
-static char* get_line_from_file(FILE* file);
+static void get_patterns_from_file(FILE* pattern_file, char* file_buffer);
+static void add_pattern(const char* const pattern, Options* const options);
 
 int main(int argc, char* argv[]) {
   Options options = {0};
   init_options(argc, argv, &options);
   for (unsigned i = 0; i < options.patterns.size; ++i) {
-    puts(options.patterns.strings[i]);
+    puts(options.patterns.data[i]);
   }
   free_options(&options);
   return 0;
 }
 
 static void init_options(int argc, char* const argv[], Options* const options) {
-  string_array_create(&options->patterns);
-  string_array_create(&options->patterns_files);
+  options->patterns.capacity = PATTERNS_INIT_CAPACITY;
+  options->patterns.size = 0;
+  options->patterns.data = malloc(sizeof(char*) * PATTERNS_INIT_CAPACITY);
+
   int long_options_index = 0;
   char current_option =
       getopt_long(argc, argv, SHORT_OPTIONS, LONG_OPTIONS, &long_options_index);
@@ -78,8 +86,10 @@ static void init_options(int argc, char* const argv[], Options* const options) {
 }
 
 static void free_options(Options* const options) {
-  string_array_destroy(&options->patterns);
-  string_array_destroy(&options->patterns_files);
+  for (unsigned i = 0; i < options->patterns.size; ++i) {
+    free(options->patterns.data[i]);
+  }
+  free(options->patterns.data);
 }
 
 static void set_option(const char option, Options* const options) {
@@ -89,8 +99,8 @@ static void set_option(const char option, Options* const options) {
       add_patterns(optarg, options);
       break;
     case 'f':
-      add_patterns_from_file(optarg, options);
       options->f = true;
+      add_patterns_from_file(optarg, options);
       break;
     case 'i':
       options->i = true;
@@ -137,56 +147,77 @@ static void print_invalid_option() {
   exit(EXIT_FAILURE);
 }
 
-static void add_patterns(char* const patterns, Options* const options) {
-  char* pattern = strtok(patterns, "\n");
-  while (pattern) {
-    string_array_add(&options->patterns, pattern);
-    pattern = strtok(NULL, "\n");
+static void add_patterns(const char* const patterns, Options* const options) {
+  char* temp_patterns = malloc(sizeof(char) * strlen(patterns) + sizeof(char));
+  if (temp_patterns != NULL) {
+    strcpy(temp_patterns, patterns);
+    char* token = strtok(temp_patterns, "\n");
+    while (token != NULL) {
+      add_pattern(token, options);
+      token = strtok(NULL, "\n");
+    }
+    free(temp_patterns);
+  } else {
+    exit(EXIT_FAILURE);
   }
+}
+
+static void add_pattern(const char* const pattern, Options* const options) {
+  if (options->patterns.size == options->patterns.capacity) {
+    options->patterns.capacity += PATTERNS_CAPACITY_ADDEND;
+    char** temp = realloc(options->patterns.data, options->patterns.capacity);
+    if (temp != NULL) {
+      options->patterns.data = temp;
+    } else {
+      exit(EXIT_FAILURE);
+    }
+  }
+  options->patterns.data[options->patterns.size] =
+      malloc(sizeof(char) * strlen(pattern) + sizeof(char));
+  strcpy(options->patterns.data[options->patterns.size], pattern);
+  ++options->patterns.size;
 }
 
 static void add_patterns_from_file(char* const file_path,
                                    Options* const options) {
-  char* pattern = NULL;
   FILE* pattern_file = fopen(file_path, FOPEN_READ_MODE);
-  if (pattern_file) {
-    while (!feof(pattern_file)) {
-      pattern = get_line_from_file(pattern_file);
-      string_array_add(&options->patterns, pattern);
-      free(pattern);
+  if (pattern_file != NULL) {
+    char* file_buffer = malloc(sizeof(char) * FILE_BUFFER_INIT_CAPACITY);
+    if (file_buffer != NULL) {
+      get_patterns_from_file(pattern_file, file_buffer);
+      add_patterns(file_buffer, options);
+      free(file_buffer);
+    } else {
+      exit(EXIT_FAILURE);
     }
   } else {
     print_invalid_file(file_path);
   }
+  fclose(pattern_file);
 }
 
-static char* get_line_from_file(FILE* file) {
-  unsigned size = 0;
-  unsigned max_size = GET_LINE_START_SIZE;
-  char* line = malloc(sizeof(char) * max_size);
-  if (line == NULL) {
-    fprintf(stderr, "%s", "get_line memory error!\n");
-    exit(EXIT_FAILURE);
-  }
-  char current_symbol = fgetc(file);
-  while (!feof(file) && current_symbol != '\n') {
-    line[size++] = current_symbol;
-    current_symbol = fgetc(file);
-    if (size == max_size) {
-      max_size *= GET_LINE_REALLOC_COEFFICIENT;
-      char* temp = realloc(line, max_size);
+static void get_patterns_from_file(FILE* pattern_file, char* file_buffer) {
+  unsigned file_buffer_size = 0;
+  unsigned file_buffer_capacity = FILE_BUFFER_INIT_CAPACITY;
+  int symbol = fgetc(pattern_file);
+  while (!feof(pattern_file)) {
+    file_buffer[file_buffer_size] = symbol;
+    ++file_buffer_size;
+    if (file_buffer_size == file_buffer_capacity) {
+      file_buffer_capacity *= FILE_BUFFER_CAPACITY_MULTIPLIER;
+      char* temp = realloc(file_buffer, file_buffer_capacity);
       if (temp != NULL) {
-        line = temp;
+        file_buffer = temp;
       } else {
-        fprintf(stderr, "%s", "get_line memory error!\n");
+        free(file_buffer);
         exit(EXIT_FAILURE);
       }
     }
+    symbol = fgetc(pattern_file);
   }
-  line[size] = '\0';
-  return line;
+  file_buffer[file_buffer_size] = '\0';
 }
 
 static void print_invalid_file(const char* const file_name) {
-  fprintf(stderr, "cat: %s: No such file or directory\n", file_name);
+  fprintf(stderr, "grep: %s: No such file or directory\n", file_name);
 }
