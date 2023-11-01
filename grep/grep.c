@@ -52,13 +52,19 @@ static void free_options(Options* const options);
 static void set_option(const char option, Options* const options);
 static void print_help();
 static void print_invalid_option();
-static void free_options(Options* const options);
-static void add_patterns(const char* const patterns, Options* const options);
+
+static void add_pattern(const char* const pattern, Options* const options);
+static void add_patterns_from_string(const char* const patterns,
+                                     Options* const options);
 static void add_patterns_from_file(char* const file_path,
                                    Options* const options);
+
 static void print_invalid_file(const char* const file_name);
 static void get_patterns_from_file(FILE* pattern_file, char* file_buffer);
-static void add_pattern(const char* const pattern, Options* const options);
+
+static void* safe_malloc(size_t size, const char* called_from);
+static char* string_malloc(size_t length);
+static void* safe_realloc(void* ptr, size_t size, const char* called_from);
 
 int main(int argc, char* argv[]) {
   Options options = {0};
@@ -73,7 +79,9 @@ int main(int argc, char* argv[]) {
 static void init_options(int argc, char* const argv[], Options* const options) {
   options->patterns.capacity = PATTERNS_INIT_CAPACITY;
   options->patterns.size = 0;
-  options->patterns.data = malloc(sizeof(char*) * PATTERNS_INIT_CAPACITY);
+  options->patterns.data =
+      safe_malloc(sizeof(char*) * PATTERNS_INIT_CAPACITY,
+                  "void init_options(int, char* const, struct Options* const)");
 
   int long_options_index = 0;
   char current_option =
@@ -96,7 +104,7 @@ static void set_option(const char option, Options* const options) {
   switch (option) {
     case 'e':
       options->e = true;
-      add_patterns(optarg, options);
+      add_patterns_from_string(optarg, options);
       break;
     case 'f':
       options->f = true;
@@ -147,33 +155,52 @@ static void print_invalid_option() {
   exit(EXIT_FAILURE);
 }
 
-static void add_patterns(const char* const patterns, Options* const options) {
-  char* temp_patterns = malloc(sizeof(char) * strlen(patterns) + sizeof(char));
-  if (temp_patterns != NULL) {
-    strcpy(temp_patterns, patterns);
-    char* token = strtok(temp_patterns, "\n");
-    while (token != NULL) {
-      add_pattern(token, options);
-      token = strtok(NULL, "\n");
-    }
-    free(temp_patterns);
-  } else {
+static void* safe_malloc(size_t size, const char* called_from) {
+  void* result = malloc(size);
+  if (result == NULL) {
+    fprintf(stderr, "Memory allocation error in %s\n", called_from);
     exit(EXIT_FAILURE);
   }
+  return result;
+}
+
+static void* safe_realloc(void* ptr, size_t size, const char* called_from) {
+  void* result = realloc(ptr, size);
+  if (result == NULL) {
+    free(ptr);
+    fprintf(stderr, "Memory reallocation error in %s\n", called_from);
+    exit(EXIT_FAILURE);
+  }
+  return result;
+}
+
+static char* string_malloc(size_t length) {
+  return safe_malloc(sizeof(char) * length + sizeof(char),
+                     "char* string_malloc(size_t)");
+}
+
+static void add_patterns_from_string(const char* const patterns,
+                                     Options* const options) {
+  char* temp_patterns = string_malloc(strlen(patterns));
+  strcpy(temp_patterns, patterns);
+  char* token = strtok(temp_patterns, "\n");
+  while (token != NULL) {
+    add_pattern(token, options);
+    token = strtok(NULL, "\n");
+  }
+  free(temp_patterns);
 }
 
 static void add_pattern(const char* const pattern, Options* const options) {
   if (options->patterns.size == options->patterns.capacity) {
     options->patterns.capacity += PATTERNS_CAPACITY_ADDEND;
-    char** temp = realloc(options->patterns.data, options->patterns.capacity);
-    if (temp != NULL) {
-      options->patterns.data = temp;
-    } else {
-      exit(EXIT_FAILURE);
-    }
+    char** temp = safe_realloc(
+        options->patterns.data, options->patterns.capacity,
+        "void add_pattern(const char* const, struct Options* const)");
+    options->patterns.data = temp;
   }
   options->patterns.data[options->patterns.size] =
-      malloc(sizeof(char) * strlen(pattern) + sizeof(char));
+      string_malloc(strlen(pattern));
   strcpy(options->patterns.data[options->patterns.size], pattern);
   ++options->patterns.size;
 }
@@ -182,14 +209,10 @@ static void add_patterns_from_file(char* const file_path,
                                    Options* const options) {
   FILE* pattern_file = fopen(file_path, FOPEN_READ_MODE);
   if (pattern_file != NULL) {
-    char* file_buffer = malloc(sizeof(char) * FILE_BUFFER_INIT_CAPACITY);
-    if (file_buffer != NULL) {
-      get_patterns_from_file(pattern_file, file_buffer);
-      add_patterns(file_buffer, options);
-      free(file_buffer);
-    } else {
-      exit(EXIT_FAILURE);
-    }
+    char* file_buffer = string_malloc(FILE_BUFFER_INIT_CAPACITY);
+    get_patterns_from_file(pattern_file, file_buffer);
+    add_patterns_from_string(file_buffer, options);
+    free(file_buffer);
   } else {
     print_invalid_file(file_path);
   }
@@ -205,13 +228,9 @@ static void get_patterns_from_file(FILE* pattern_file, char* file_buffer) {
     ++file_buffer_size;
     if (file_buffer_size == file_buffer_capacity) {
       file_buffer_capacity *= FILE_BUFFER_CAPACITY_MULTIPLIER;
-      char* temp = realloc(file_buffer, file_buffer_capacity);
-      if (temp != NULL) {
-        file_buffer = temp;
-      } else {
-        free(file_buffer);
-        exit(EXIT_FAILURE);
-      }
+      char* temp = safe_realloc(file_buffer, file_buffer_capacity,
+                                "void get_patterns_from_file(FILE*, char*)");
+      file_buffer = temp;
     }
     symbol = fgetc(pattern_file);
   }
