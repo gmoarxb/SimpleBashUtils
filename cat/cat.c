@@ -94,12 +94,10 @@ static void print_invalid_option() {
 static void process_files(int file_count, char* const file_path[],
                           const Options* const opts) {
   FILE* curr_file = NULL;
-  while (file_count > 0) {
-    curr_file = safe_fopen(*file_path, FOPEN_READ);
+  while (file_count--) {
+    curr_file = safe_fopen(*file_path++, FOPEN_READ);
     print_file(curr_file, opts);
     fflush(stdout);
-    ++file_path;
-    --file_count;
     fclose(curr_file);
   }
 }

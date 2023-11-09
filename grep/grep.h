@@ -52,7 +52,7 @@ static void patterns_add(Patterns* const patts, const char* const patt);
 static void patterns_add_from_file(Patterns* const patts, char* const filename);
 
 static void buffer_file(FILE* file, char* buffer);
-static void process_files(int file_cnt, char* const file_path[],
-                          const Options* const opts);
+// static void process_files(int file_cnt, char* const file_path[],
+//                           const Options* const opts);
 
 #endif  // GREP_H

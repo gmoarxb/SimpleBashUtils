@@ -128,7 +128,7 @@ static void patterns_add_from_string(Patterns* const patts,
 static void patterns_add(Patterns* const patts, const char* const patt) {
   if (patts->cur_size == patts->max_size) {
     patts->max_size += PATTERNS_ADD;
-    patts->data = safe_realloc(patts->data, patts->max_size);
+    patts->data = safe_realloc(patts->data, patts->max_size * sizeof(char*));
   }
   patts->data[patts->cur_size] =
       safe_malloc(sizeof(char) * strlen(patt) + sizeof(char));
@@ -146,17 +146,16 @@ static void patterns_add_from_file(Patterns* const patts,
 }
 
 static void buffer_file(FILE* file, char* buffer) {
-  unsigned size = 0;
-  unsigned max_size = BUFFER_INIT;
-  int symbol = fgetc(file);
+  size_t size = 0;
+  size_t max_size = BUFFER_INIT;
+  char symbol = fgetc(file);
   while (!feof(file)) {
     buffer[size++] = symbol;
+    symbol = fgetc(file);
     if (size == max_size) {
       max_size *= BUFFER_MULT;
-      char* temp = safe_realloc(buffer, max_size);
-      buffer = temp;
+      buffer = safe_realloc(buffer, max_size * sizeof(char));
     }
-    symbol = fgetc(file);
   }
   buffer[size] = '\0';
 }
