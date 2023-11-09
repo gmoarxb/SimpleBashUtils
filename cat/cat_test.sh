@@ -6,6 +6,10 @@ if [[ ! -s ./s21_cat ]]; then
     exit
 fi
 
+if [[ $# -eq 0 ]]; then
+    echo "You must run test with one argument (1-3)"
+    exit
+fi
 
 mkdir -p test_directory
 cp ./s21_cat test_directory/
