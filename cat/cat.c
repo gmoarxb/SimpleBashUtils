@@ -100,6 +100,7 @@ static void process_files(int file_count, char* const file_path[],
     fflush(stdout);
     ++file_path;
     --file_count;
+    fclose(curr_file);
   }
 }
 
