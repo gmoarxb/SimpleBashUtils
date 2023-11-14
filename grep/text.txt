@@ -1,10 +1,9 @@
 apple banana
-banana apple
+banana apple pear Apple
 pineapple
-
+123
 cucumber
 tomato
-
 
 malinaberry
 chernikaberry

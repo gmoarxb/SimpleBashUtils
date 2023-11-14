@@ -26,7 +26,7 @@ static void print_invalid_option();
 
 static void process_files(int file_count, char* const file_path[],
                           const Options* const opts);
-static void print_file(FILE* file, const Options* const opts);
+static void cat_file(FILE* file, const Options* const opts);
 
 static void count_lfd(const char curr_sym, size_t* const lfd_count);
 static void number_line(const char prev_sym, const char curr_sym,

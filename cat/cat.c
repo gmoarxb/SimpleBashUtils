@@ -2,6 +2,7 @@
 
 #include <getopt.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "../utilities/safe.h"
 
@@ -93,16 +94,15 @@ static void print_invalid_option() {
 
 static void process_files(int file_count, char* const file_path[],
                           const Options* const opts) {
-  FILE* curr_file = NULL;
-  while (file_count--) {
-    curr_file = safe_fopen(*file_path++, FOPEN_READ);
-    print_file(curr_file, opts);
+  for (FILE* curr_file = NULL; file_count--; ++file_path) {
+    curr_file = safe_fopen(*file_path, FOPEN_READ);
+    cat_file(curr_file, opts);
     fflush(stdout);
     fclose(curr_file);
   }
 }
 
-static void print_file(FILE* file, const Options* const opts) {
+static void cat_file(FILE* file, const Options* const opts) {
   static size_t lfd_count = 1;
   static char prev_sym = '\n';
   char curr_sym = fgetc(file);
@@ -132,9 +132,9 @@ static void number_line(const char prev_sym, const char curr_sym,
                         const Options* const opts) {
   static size_t line_count = 0;
   if (opts->b && prev_sym == '\n' && curr_sym != '\n') {
-    fprintf(stdout, "%6u\t", ++line_count);
+    fprintf(stdout, "%6zu\t", ++line_count);
   } else if (opts->n && prev_sym == '\n') {
-    fprintf(stdout, "%6u\t", ++line_count);
+    fprintf(stdout, "%6zu\t", ++line_count);
   }
 }
 

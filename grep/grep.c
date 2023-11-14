@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "../utilities/safe.h"
 
@@ -25,10 +26,7 @@ static const struct option LONGOPTS[] = {
 int main(int argc, char* argv[]) {
   Options opts = {0};
   options_init(&opts, argc, argv);
-  // process_files(argc - optind, argv + optind, &opts);
-  for (size_t i = 0; i < opts.patts.cur_size; ++i) {
-    puts(opts.patts.data[i]);
-  }
+  process_files(argc - optind, argv + optind, &opts);
   options_free(&opts);
   return 0;
 }
@@ -158,4 +156,61 @@ static void buffer_file(FILE* file, char* buffer) {
     }
   }
   buffer[size] = '\0';
+}
+
+static void process_files(int file_count, char* const file_path[],
+                          const Options* const opts) {
+  for (FILE* curr_file = NULL; file_count--; ++file_path) {
+    curr_file = fopen(*file_path, FOPEN_READ);
+    if (curr_file != NULL) {
+      grep_file(curr_file, *file_path, opts);
+      fflush(stdout);
+      fclose(curr_file);
+    } else if (!opts->s) {
+      fprintf(stderr, "%s: No such file or directory\n", *file_path);
+    }
+  }
+}
+
+static void grep_file(FILE* file, const char* filename, const Options* const opts) {
+  char* line = NULL;
+  size_t line_size = 0;
+  while (getline(&line, &line_size, file) != -1) {
+    for (size_t i = 0; i < opts->patts.cur_size; ++i) {
+      bool found = find_matches(line, opts);
+      if (opts->v) {
+        found = !found;
+      }
+      if (found) {
+        if (!opts->h) {
+          fputs(filename, stdout);
+          fputc(':', stdout);
+        }
+        fputs(line, stdout);
+      }
+    }
+  }
+  free(line);
+}
+
+static bool find_matches(const char* const line, const Options* const opts) {
+  bool found = false;
+  char* temp_line = safe_malloc(sizeof(char) * strlen(line) + sizeof(char));
+  for (size_t i = 0; i < strlen(line); ++i) {
+    temp_line[i] = opts->i ? tolower(line[i]) : line[i]; 
+  }
+  temp_line[strlen(line)] = '\0';
+  for (size_t i = 0; i < opts->patts.cur_size && !found; ++i) {
+    char* temp_pattern = safe_malloc(sizeof(char) * strlen(opts->patts.data[i]) + sizeof(char));
+    for (size_t j = 0; j < strlen(opts->patts.data[i]); ++j) {
+      temp_pattern[j] = opts->i ? tolower(opts->patts.data[i][j]) : opts->patts.data[i][j];
+    }
+    temp_pattern[strlen(opts->patts.data[i])] = '\0';
+    if (strstr(temp_line, temp_pattern) != NULL) {
+      found = true;
+    }
+    free(temp_pattern);
+  }
+  free(temp_line);
+  return found;
 }

@@ -1,6 +1,8 @@
 #ifndef GREP_H
 #define GREP_H
 
+#define _GNU_SOURCE
+
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -52,7 +54,10 @@ static void patterns_add(Patterns* const patts, const char* const patt);
 static void patterns_add_from_file(Patterns* const patts, char* const filename);
 
 static void buffer_file(FILE* file, char* buffer);
-// static void process_files(int file_cnt, char* const file_path[],
-//                           const Options* const opts);
+static void process_files(int file_cnt, char* const file_path[],
+                          const Options* const opts);
+
+static void grep_file(FILE* file, const char* filename, const Options* const opts);
+static bool find_matches(const char* const line, const Options* const opts);
 
 #endif  // GREP_H
