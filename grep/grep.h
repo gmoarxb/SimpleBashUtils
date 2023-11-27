@@ -33,6 +33,7 @@ struct Options {
   bool l;
   bool c;
   struct Patterns patts;
+  size_t file_count;
 };
 
 typedef struct Patterns Patterns;
@@ -57,7 +58,17 @@ static void buffer_file(FILE* file, char* buffer);
 static void process_files(int file_cnt, char* const file_path[],
                           const Options* const opts);
 
-static void grep_file(FILE* file, const char* filename, const Options* const opts);
-static bool find_matches(const char* const line, const Options* const opts);
+static void route_file_greping(FILE* file, const char* filename,
+                               const Options* const opts);
+
+static void grep_files_with_matches(FILE* file, const char* filename,
+                                    const Options* const opts);
+
+static bool is_match(char* buffer, const Patterns* const patts);
+static void grep_match_count(FILE* file, const char* filename,
+                             const Options* const opts);
+
+static void grep_lines_with_matches(FILE* file, const char* filename,
+                                    const Options* const opts);
 
 #endif  // GREP_H

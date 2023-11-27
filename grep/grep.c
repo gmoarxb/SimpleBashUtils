@@ -1,9 +1,9 @@
 #include "grep.h"
 
+#include <ctype.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "../utilities/safe.h"
 
@@ -39,6 +39,10 @@ static void options_init(Options* const opts, int argc, char* const argv[]) {
     options_set(opts, curr_opt);
     curr_opt = getopt_long(argc, argv, SHORTOPTS, LONGOPTS, &longind);
   }
+  if (!opts->e && !opts->f) {
+    patterns_add_from_string(&opts->patts, argv[optind++]);
+  }
+  opts->file_count = argc - optind;
 }
 
 static void options_free(Options* const opts) { patterns_free(&opts->patts); }
@@ -163,7 +167,7 @@ static void process_files(int file_count, char* const file_path[],
   for (FILE* curr_file = NULL; file_count--; ++file_path) {
     curr_file = fopen(*file_path, FOPEN_READ);
     if (curr_file != NULL) {
-      grep_file(curr_file, *file_path, opts);
+      route_file_greping(curr_file, *file_path, opts);
       fflush(stdout);
       fclose(curr_file);
     } else if (!opts->s) {
@@ -172,45 +176,70 @@ static void process_files(int file_count, char* const file_path[],
   }
 }
 
-static void grep_file(FILE* file, const char* filename, const Options* const opts) {
-  char* line = NULL;
-  size_t line_size = 0;
-  while (getline(&line, &line_size, file) != -1) {
-    for (size_t i = 0; i < opts->patts.cur_size; ++i) {
-      bool found = find_matches(line, opts);
-      if (opts->v) {
-        found = !found;
-      }
-      if (found) {
-        if (!opts->h) {
-          fputs(filename, stdout);
-          fputc(':', stdout);
-        }
-        fputs(line, stdout);
-      }
-    }
+static void route_file_greping(FILE* file, const char* filename,
+                               const Options* const opts) {
+  if (opts->l) {
+    grep_files_with_matches(file, filename, opts);
+  } else if (opts->c) {
+    grep_match_count(file, filename, opts);
+  } else {
+    grep_lines_with_matches(file, filename, opts);
   }
-  free(line);
+  // else if (opts->o) {
+  //   grep_only_matching(file, filename, opts);
+  // } else {
 }
 
-static bool find_matches(const char* const line, const Options* const opts) {
-  bool found = false;
-  char* temp_line = safe_malloc(sizeof(char) * strlen(line) + sizeof(char));
-  for (size_t i = 0; i < strlen(line); ++i) {
-    temp_line[i] = opts->i ? tolower(line[i]) : line[i]; 
-  }
-  temp_line[strlen(line)] = '\0';
-  for (size_t i = 0; i < opts->patts.cur_size && !found; ++i) {
-    char* temp_pattern = safe_malloc(sizeof(char) * strlen(opts->patts.data[i]) + sizeof(char));
-    for (size_t j = 0; j < strlen(opts->patts.data[i]); ++j) {
-      temp_pattern[j] = opts->i ? tolower(opts->patts.data[i][j]) : opts->patts.data[i][j];
+static void grep_files_with_matches(FILE* file, const char* filename,
+                                    const Options* const opts) {
+  char* buffer = safe_malloc(sizeof(char) * BUFFER_INIT);
+  size_t buffer_size = BUFFER_INIT;
+  while (getline(&buffer, &buffer_size, file) != EOF) {
+    if (is_match(buffer, &opts->patts)) {
+      fprintf(stdout, "%s\n", filename);
+      break;
     }
-    temp_pattern[strlen(opts->patts.data[i])] = '\0';
-    if (strstr(temp_line, temp_pattern) != NULL) {
-      found = true;
-    }
-    free(temp_pattern);
   }
-  free(temp_line);
-  return found;
+  free(buffer);
+}
+
+static bool is_match(char* buffer, const Patterns* const patts) {
+  for (size_t i = 0; i < patts->cur_size; ++i) {
+    if (strstr(buffer, patts->data[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void grep_match_count(FILE* file, const char* filename,
+                             const Options* const opts) {
+  size_t match_count = 0;
+  char* buffer = safe_malloc(sizeof(char) * BUFFER_INIT);
+  size_t buffer_size = BUFFER_INIT;
+  while (getline(&buffer, &buffer_size, file) != EOF) {
+    if (is_match(buffer, &opts->patts)) {
+      ++match_count;
+    }
+  }
+  if (opts->file_count > 1 && !opts->h) {
+    fprintf(stdout, "%s:", filename);
+  }
+  fprintf(stdout, "%zu\n", match_count);
+  free(buffer);
+}
+
+static void grep_lines_with_matches(FILE* file, const char* filename,
+                                    const Options* const opts) {
+  char* buffer = safe_malloc(sizeof(char) * BUFFER_INIT);
+  size_t buffer_size = BUFFER_INIT;
+  while (getline(&buffer, &buffer_size, file) != EOF) {
+    if (is_match(buffer, &opts->patts)) {
+      if (opts->file_count > 1 && !opts->h) {
+        fprintf(stdout, "%s:", filename);
+      }
+      fprintf(stdout, "%s", buffer);
+    }
+  }
+  free(buffer);
 }
