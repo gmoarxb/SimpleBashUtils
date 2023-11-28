@@ -3,6 +3,7 @@
 
 #define _GNU_SOURCE
 
+#include <regex.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -16,7 +17,8 @@
 #define BUFFER_MULT 2
 
 struct Patterns {
-  char** data;
+  char **data;
+  regex_t *reg_data;
   size_t cur_size;
   size_t max_size;
 };
@@ -39,36 +41,37 @@ struct Options {
 typedef struct Patterns Patterns;
 typedef struct Options Options;
 
-static void options_init(Options* const opts, int argc, char* const argv[]);
-static void options_free(Options* const opts);
-static void options_set(Options* const opts, const char opt);
+static void options_init(Options *const opts, int argc, char *const argv[]);
+static void options_free(Options *const opts);
+static void options_set(Options *const opts, const char opt);
 
-static void patterns_init(Patterns* const patts);
-static void patterns_free(Patterns* const patts);
+static void patterns_init(Patterns *const patts);
+static void patterns_free(Patterns *const patts);
 
 static void print_help();
 static void print_invalid_option();
 
-static void patterns_add_from_string(Patterns* const patts,
-                                     const char* const str);
-static void patterns_add(Patterns* const patts, const char* const patt);
-static void patterns_add_from_file(Patterns* const patts, char* const filename);
+static void patterns_add_from_string(Patterns *const patts,
+                                     const char *const str);
+static void patterns_add(Patterns *const patts, const char *const patt);
+static void patterns_add_from_file(Patterns *const patts, char *const filename);
+static void patterns_compile_to_regex(Options *const opts);
 
-static void buffer_file(FILE* file, char* buffer);
-static void process_files(int file_cnt, char* const file_path[],
-                          const Options* const opts);
+static void buffer_file(FILE *file, char *buffer);
+static void process_files(int file_cnt, char *const file_path[],
+                          const Options *const opts);
 
-static void route_file_greping(FILE* file, const char* filename,
-                               const Options* const opts);
+static void route_file_greping(FILE *file, const char *filename,
+                               const Options *const opts);
 
-static void grep_files_with_matches(FILE* file, const char* filename,
-                                    const Options* const opts);
+static void grep_files_with_matches(FILE *file, const char *filename,
+                                    const Options *const opts);
 
-static bool is_match(char* buffer, const Patterns* const patts);
-static void grep_match_count(FILE* file, const char* filename,
-                             const Options* const opts);
+static bool is_match(char *line, const Options *const opts);
+static void grep_match_count(FILE *file, const char *filename,
+                             const Options *const opts);
 
-static void grep_lines_with_matches(FILE* file, const char* filename,
-                                    const Options* const opts);
+static void grep_lines_with_matches(FILE *file, const char *filename,
+                                    const Options *const opts);
 
-#endif  // GREP_H
+#endif // GREP_H
