@@ -48,6 +48,7 @@ static void options_init(Options *const opts, int argc, char *const argv[]) {
 
 static void patterns_compile_to_regex(Options *const opts) {
   Patterns *patts = &opts->patts;
+  patts->reg_data = safe_malloc(sizeof(regex_t) * patts->cur_size);
   int reg_icase = opts->i ? REG_ICASE : 0;
   for (size_t i = 0; i < patts->cur_size; ++i) {
     regcomp(&patts->reg_data[i], patts->data[i], reg_icase);
@@ -60,7 +61,6 @@ static void patterns_init(Patterns *const patts) {
   patts->cur_size = 0;
   patts->max_size = PATTERNS_INIT;
   patts->data = safe_malloc(sizeof(char *) * patts->max_size);
-  patts->reg_data = safe_malloc(sizeof(regex_t) * patts->max_size);
 }
 
 static void patterns_free(Patterns *const patts) {
@@ -74,50 +74,51 @@ static void patterns_free(Patterns *const patts) {
 
 static void options_set(Options *const opts, const char opt) {
   switch (opt) {
-  case 'e':
-    opts->e = true;
-    patterns_add_from_string(&opts->patts, optarg);
-    break;
-  case 'f':
-    opts->f = true;
-    patterns_add_from_file(&opts->patts, optarg);
-    break;
-  case 'i':
-    opts->i = true;
-    break;
-  case 's':
-    opts->s = true;
-    break;
-  case 'v':
-    opts->v = true;
-    break;
-  case 'n':
-    opts->n = true;
-    break;
-  case 'h':
-    opts->h = true;
-    break;
-  case 'o':
-    opts->o = true;
-    break;
-  case 'l':
-    opts->l = true;
-    break;
-  case 'c':
-    opts->c = true;
-    break;
-  case 0:
-    print_help();
-    break;
-  case '?':
-  default:
-    print_invalid_option();
+    case 'e':
+      opts->e = true;
+      patterns_add_from_string(&opts->patts, optarg);
+      break;
+    case 'f':
+      opts->f = true;
+      patterns_add_from_file(&opts->patts, optarg);
+      break;
+    case 'i':
+      opts->i = true;
+      break;
+    case 's':
+      opts->s = true;
+      break;
+    case 'v':
+      opts->v = true;
+      break;
+    case 'n':
+      opts->n = true;
+      break;
+    case 'h':
+      opts->h = true;
+      break;
+    case 'o':
+      opts->o = true;
+      break;
+    case 'l':
+      opts->l = true;
+      break;
+    case 'c':
+      opts->c = true;
+      break;
+    case 0:
+      print_help();
+      break;
+    case '?':
+    default:
+      print_invalid_option();
   }
 }
 
 static void print_help() {
-  fprintf(stdout, "Usage: grep [OPTION]... PATTERNS [FILE]...\n"
-                  "Search for PATTERNS in each FILE.\n");
+  fprintf(stdout,
+          "Usage: grep [OPTION]... PATTERNS [FILE]...\n"
+          "Search for PATTERNS in each FILE.\n");
   exit(EXIT_FAILURE);
 }
 
@@ -193,12 +194,11 @@ static void route_file_greping(FILE *file, const char *filename,
     grep_files_with_matches(file, filename, opts);
   } else if (opts->c) {
     grep_match_count(file, filename, opts);
+  } else if (opts->o) {
+    grep_only_matching(file, filename, opts);
   } else {
     grep_lines_with_matches(file, filename, opts);
   }
-  // else if (opts->o) {
-  //   grep_only_matching(file, filename, opts);
-  // } else {
 }
 
 static void grep_files_with_matches(FILE *file, const char *filename,
@@ -206,7 +206,7 @@ static void grep_files_with_matches(FILE *file, const char *filename,
   char *buffer = safe_malloc(sizeof(char) * BUFFER_INIT);
   size_t buffer_size = BUFFER_INIT;
   while (getline(&buffer, &buffer_size, file) != EOF) {
-    if (is_match(buffer, opts)) {
+    if (is_match(buffer, opts, NULL)) {
       fprintf(stdout, "%s\n", filename);
       break;
     }
@@ -214,16 +214,21 @@ static void grep_files_with_matches(FILE *file, const char *filename,
   free(buffer);
 }
 
-static bool is_match(char *line, const Options *const opts) {
+static bool is_match(const char *line, const Options *const opts,
+                     regmatch_t *const match) {
   const Patterns *const patts = &opts->patts;
   bool result = false;
+  size_t nmatch = match ? 1 : 0;
   for (size_t i = 0; i < patts->cur_size; ++i) {
-    if (regexec(&patts->reg_data[i], line, 0, NULL, 0) == 0) {
+    if (regexec(&patts->reg_data[i], line, nmatch, match, 0) == 0) {
       result = true;
     }
   }
   if (opts->v) {
     result = !result;
+    if (opts->o) {
+      result = false;
+    }
   }
   return result;
 }
@@ -234,7 +239,7 @@ static void grep_match_count(FILE *file, const char *filename,
   char *buffer = safe_malloc(sizeof(char) * BUFFER_INIT);
   size_t buffer_size = BUFFER_INIT;
   while (getline(&buffer, &buffer_size, file) != EOF) {
-    if (is_match(buffer, opts)) {
+    if (is_match(buffer, opts, NULL)) {
       ++match_count;
     }
   }
@@ -249,12 +254,41 @@ static void grep_lines_with_matches(FILE *file, const char *filename,
                                     const Options *const opts) {
   char *line = safe_malloc(sizeof(char) * BUFFER_INIT);
   size_t line_size = BUFFER_INIT;
+  size_t line_count = 0;
   while (getline(&line, &line_size, file) != EOF) {
-    if (is_match(line, opts)) {
+    ++line_count;
+    if (is_match(line, opts, NULL)) {
       if (opts->file_count > 1 && !opts->h) {
         fprintf(stdout, "%s:", filename);
       }
+      if (opts->n) {
+        fprintf(stdout, "%zu:", line_count);
+      }
       fprintf(stdout, "%s", line);
+    }
+  }
+  free(line);
+}
+
+static void grep_only_matching(FILE *file, const char *filename,
+                               const Options *const opts) {
+  char *line = safe_malloc(sizeof(char) * BUFFER_INIT);
+  size_t line_size = BUFFER_INIT;
+  size_t line_count = 0;
+  regmatch_t match = {0};
+  while (getline(&line, &line_size, file) != EOF) {
+    char *line_ptr = line;
+    ++line_count;
+    while (is_match(line_ptr, opts, &match)) {
+      if (opts->file_count > 1 && !opts->h) {
+        fprintf(stdout, "%s:", filename);
+      }
+      if (opts->n) {
+        fprintf(stdout, "%zu:", line_count);
+      }
+      fprintf(stdout, "%.*s\n", (match.rm_eo - match.rm_so),
+              (line_ptr + match.rm_so));
+      line_ptr += match.rm_eo;
     }
   }
   free(line);

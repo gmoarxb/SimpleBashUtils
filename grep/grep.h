@@ -67,11 +67,14 @@ static void route_file_greping(FILE *file, const char *filename,
 static void grep_files_with_matches(FILE *file, const char *filename,
                                     const Options *const opts);
 
-static bool is_match(char *line, const Options *const opts);
+static bool is_match(const char *line, const Options *const opts,
+                     regmatch_t *const match);
 static void grep_match_count(FILE *file, const char *filename,
                              const Options *const opts);
 
 static void grep_lines_with_matches(FILE *file, const char *filename,
                                     const Options *const opts);
+static void grep_only_matching(FILE *file, const char *filename,
+                               const Options *const opts);
 
-#endif // GREP_H
+#endif  // GREP_H
